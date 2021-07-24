@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>API Playground</title>
+</head>
+<script>
+  const PERSONA_OBJECT = {
+    alias: {
+      type: 'string',
+    },
+    lastName: {
+      type: 'string',
+    },
+    firstName: {
+      type: 'string',
+    },
+    age: {
+      type: 'number',
+    },
+    birthday: {
+      type: 'date',
+    },
+    gender: {
+      type: 'string',
+    },
+    email: {
+      type: 'email',
+    },
+    address: {
+      type: 'object',
+      rule: {
+        line1: {
+          type: 'string'
+        },
+        line2: {
+          type: 'string',
+        },
+        city: {
+          type: 'string'
+        },
+        state: {
+          type: 'string'
+        },
+        country: {
+          type: 'string'
+        },
+        zipCode: {
+          type: 'string'
+        }
+      }
+    },
+    phone: {
+      type: 'tel',
+    }
+  }
+
+  const API = {
+    personas: {
+      create: {
+        params: [{
+          name: 'persona',
+          type: 'object',
+          rule: PERSONA_OBJECT
+          // required: true
+        }]
+      },
+      list: {
+        params: []
+      },
+      show: {
+        params: [{
+          name: 'id',
+          type: 'string'
+        }]
+      },
+      edit: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }, {
+            name: 'persona',
+            type: 'object',
+            rule: PERSONA_OBJECT
+            // required: true
+          }
+        ]
+      }
+    }
+  }
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/8.8.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.8.0/firebase-auth.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: 'AIzaSyBY4fEX_2U8NXMRWvj0o7a7wfXDnuepTPQ',
+    authDomain: 'project-persona-553ab.firebaseapp.com',
+    projectId: 'project-persona-553ab',
+    storageBucket: 'project-persona-553ab.appspot.com',
+    messagingSenderId: '580192136806',
+    appId: '1:580192136806:web:851f6a836be87e3a4287a7'
+  }
+
+  firebase.initializeApp(firebaseConfig)
+</script>
+
+<style>
+    body {
+        font-family: monospace;
+    }
+
+    hr {
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+
+    form > div {
+        margin: 4px;
+    }
+
+    form > div > label {
+        display: inline-block;
+        width: 200px;
+    }
+
+    form > div > :nth-child(2) {
+        display: inline-block;
+        width: 300px;
+    }
+
+    #output {
+        padding: 0;
+    }
+
+    #output > div {
+        display: inline-block;
+        width: calc(50% - 4px);
+        vertical-align: top
+    }
+
+    #output pre {
+        overflow: auto;
+    }
+</style>
+
+<body>
+<h1>API Playground</h1>
+
+<div id="app">
+    <form id="login">
+        <div>
+            <label for="email">email: </label>
+            <input type="text" name="email" id="email" required>
+        </div>
+        <div>
+            <label for="password">password: </label>
+            <input type="password" name="password" id="password" required>
+        </div>
+        <div>
+            <label for="jwt">jwt: </label>
+            <input type="text" name="jwt" id="jwt" disabled>
+        </div>
+        <div>
+            <label for="uid">uid: </label>
+            <input type="text" name="uid" id="uid" disabled>
+        </div>
+        <div>
+            <div>
+                <input type="button" value="Sign Up"
+                       onclick="firebase.auth().createUserWithEmailAndPassword(email.value, password.value).then(updateAuthUi).catch(alert)"/>
+                <input type="button" value="Sign In"
+                       onclick="firebase.auth().signInWithEmailAndPassword(email.value, password.value).then(updateAuthUi).catch(alert)"/>
+                <input type="button" value="Sign Out"
+                       onclick="firebase.auth().signOut().then(updateAuthUi).then(() => {
+                         email.value = ''
+                         password.value = ''
+                       }).catch(alert)"/>
+            </div>
+        </div>
+        <script>
+          function updateAuthUi () {
+            if (firebase.auth().currentUser) {
+              email.value = firebase.auth().currentUser.email
+              password.value = '******'
+              uid.value = firebase.auth().currentUser.uid
+              firebase.auth().currentUser.getIdToken().then(token => jwt.value = token).catch(alert)
+            } else {
+              uid.value = ''
+              jwt.value = ''
+            }
+          }
+
+          setInterval(updateAuthUi, 1000)
+        </script>
+    </form>
+
+    <hr/>
+
+    <form id="rpc">
+        <div>
+            <label for="gateway">gateway: </label>
+            <input type="text" name="gateway" id="gateway" value="/api" required>
+        </div>
+        <div>
+            <label for="service">service: </label>
+            <select name="service" id="service" onclick="updateMethodUi()">
+                <script>
+                  Object.keys(API).forEach(service => document.writeln(`<option value="${service}">${service}</option>`))
+                </script>
+            </select>
+        </div>
+        <div>
+            <label for="method">method: </label>
+            <select name="method" id="method" onclick="updateInputUi()">
+            </select>
+
+            <script>
+              function updateMethodUi () {
+                const methods = API[service.value] ? Object.keys(API[service.value]) : []
+                method.innerHTML = methods.map(method => `<option value="${method}">${method}</option>`)
+              }
+
+              updateMethodUi()
+            </script>
+        </div>
+    </form>
+
+    <form id="input">
+
+    </form>
+    <script>
+      function updateInputUiHelper (rule, path) {
+        path = path || rule.name
+
+        const buildEntry = (id, type = 'text') => {
+          const i = id.lastIndexOf('.')
+          const label = '&nbsp;'.repeat((id.split('.').length - 1) * 4) + id.substring(i + 1)
+
+          return `
+            <div>
+                <label for="id">${label}: </label>
+                <input type="${type}" id="${id}" onkeyup="(() => {
+                    if (this.value.length !== 0) {
+                      const parts = ('enable-' + this.id).split('.')
+                      while (parts.length > 0) {
+                        if (window[parts.join('.')]) {
+                          window[parts.join('.')].checked = true
+                        }
+                        parts.pop()
+                      }
+                    }
+                })()">
+                <input type="checkbox" id="enable-${id}">
+            </div>
+          `
+        }
+
+        if (rule.type === 'object' || rule.type === 'array') {
+          const i = path.lastIndexOf('.')
+          const label = '&nbsp;'.repeat((path.split('.').length - 1) * 4) + path.substring(i + 1)
+
+          return `<div><label>${label}:</label><span style="display: none"></span><input type="checkbox" id="enable-${path}"></div>` +
+            Reflect.ownKeys(rule.rule).map(key => updateInputUiHelper(rule.rule[key], path + '.' + (rule.type === 'object' ? key : '0'))).join('')
+        } else {
+          return buildEntry(path, rule.type)
+        }
+      }
+
+      function updateInputUi () {
+        const service = window.service.value
+        const method = window.method.value
+        const api = API[service][method]
+
+        input.innerHTML = `<div><label>parameters:</label></div>` +
+          api.params.map(param => updateInputUiHelper(param, 'parameters.' + param.name)).join('')
+      }
+
+      updateInputUi()
+    </script>
+
+    <form id="submit">
+        <div>
+            <div>
+                <input type="button" value="Submit"
+                       onclick="submitRpc().catch(alert)"/>
+                <input type="button" value="Reset"
+                       onclick="updateInputUi()"/>
+            </div>
+        </div>
+    </form>
+    <script>
+      let requestCounter = 1
+      let rpcRequest, rpcResponse
+
+      async function submitRpc () {
+        rpcRequest = undefined
+        rpcResponse = undefined
+        updateOutputUi()
+
+        const service = window.service.value
+        const method = window.method.value
+        const api = API[service][method]
+
+        const helper = (rule, path) => {
+          path = path || rule.name
+
+          if (window['enable-' + path] && !window['enable-' + path].checked) {
+            return undefined
+          }
+
+          if (rule.type === 'object') {
+            return Object.assign(
+              {},
+              ...Reflect.ownKeys(rule.rule).map(key => ({ [key]: helper(rule.rule[key], path + '.' + key) }))
+            )
+          } else if (rule.type === 'array') {
+            return [Reflect.ownKeys(rule.rule).map(key => ({ [key]: helper(rule.rule[key], path + '.' + 0) }))]
+          } else if (rule.type === 'number') {
+            return parseInt(window[path].value, 10) || 0
+          } else if (rule.type === 'checkbox') {
+            return window[path].checked
+          } else {
+            return window[path].value
+          }
+        }
+
+        const params = api.params.map(param => helper(param, 'parameters.' + param.name))
+
+        rpcRequest = {
+          jsonrpc: '2.0',
+          id: requestCounter++,
+          method: `${service}/${method}`,
+          params
+        }
+
+        updateOutputUi()
+        const headers = {
+          'content-type': 'application/json'
+        }
+
+        if (firebase.auth().currentUser) {
+          headers.authorization = 'Bearer ' + await firebase.auth().currentUser.getIdToken()
+        }
+
+        rpcResponse = await (await window.fetch(gateway.value, {
+          method: 'POST',
+          headers,
+          cache: 'no-cache',
+          body: JSON.stringify(rpcRequest)
+        })).json()
+
+        updateOutputUi()
+      }
+    </script>
+
+    <hr/>
+
+    <div id="output">
+        <div>
+            <label for="request">request: </label>
+            <pre id="request"></pre>
+        </div>
+        <div>
+            <label for="response">response: </label>
+            <pre id="response"></pre>
+        </div>
+        <div>
+            <div>
+                <input type="button" value="Show Parsed"
+                       onclick="updateOutputUi()"/>
+                <input type="button" value="Show Raw"
+                       onclick="updateOutputUi(true)"/>
+            </div>
+        </div>
+    </div>
+    <script>
+      function syntaxHighlight (json) {
+        if (typeof json != 'string') {
+          json = JSON.stringify(json, undefined, 2)
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+          let cls = 'number'
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+              cls = 'key'
+            } else {
+              cls = 'string'
+            }
+          } else if (/true|false/.test(match)) {
+            cls = 'boolean'
+          } else if (/null/.test(match)) {
+            cls = 'null'
+          }
+          return '<span class="' + cls + '">' + match + '</span>'
+        })
+      }
+
+      function updateOutputUi (showRaw = false) {
+        if (rpcRequest) {
+          if (showRaw) {
+            request.innerHTML = syntaxHighlight(JSON.stringify(rpcRequest, null, 2))
+          } else {
+            request.innerHTML = syntaxHighlight(JSON.stringify(rpcRequest.params, null, 2))
+          }
+        } else {
+          request.innerText = '(no request made yet)'
+        }
+
+        if (rpcResponse) {
+          if (showRaw) {
+            response.innerHTML = syntaxHighlight(JSON.stringify(rpcResponse, null, 2))
+          } else {
+            if (rpcResponse.error) {
+              const err = new Error(rpcResponse.error.message)
+              err.code = rpcResponse.error.code
+
+              rpcResponse.error.data = rpcResponse.error.data || {}
+              err.stack = rpcResponse.error.data.stack || rpcResponse.error.stack
+              err.name = rpcResponse.error.data.name || 'RpcError'
+
+              response.innerText = err.stack
+            } else {
+              response.innerHTML = syntaxHighlight(JSON.stringify(rpcResponse.result, null, 2))
+            }
+          }
+        } else {
+          response.innerText = '(no response received yet)'
+        }
+      }
+
+      updateOutputUi()
+    </script>
+</div>
+</body>
+</html>
