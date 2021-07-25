@@ -56,6 +56,67 @@
     }
   }
 
+  const CREDENTIAL_OBJECT = {
+    name: {
+      type: 'string'
+    },
+    uri: {
+      type: 'string',
+      format: /^(?<scheme>[a-z][a-z0-9+.-]+):(?<authority>\/\/(?<user>[^@]+@)?(?<host>[a-z0-9.\-_~]+)(?<port>:\d+)?)?(?<path>(?:[a-z0-9-._~]|%[a-f0-9]|[!$&'()*+,;=:@])+(?:\/(?:[a-z0-9-._~]|%[a-f0-9]|[!$&'()*+,;=:@])*)*|(?:\/(?:[a-z0-9-._~]|%[a-f0-9]|[!$&'()*+,;=:@])+)*)?(?<query>\?(?:[a-z0-9-._~]|%[a-f0-9]|[!$&'()*+,;=:@]|[/?])+)?(?<fragment>#(?:[a-z0-9-._~]|%[a-f0-9]|[!$&'()*+,;=:@]|[/?])+)?$/i
+    },
+    username: {
+      type: 'string'
+    },
+    password: {
+      type: 'string'
+    }
+  }
+
+  const NOTE_OBJECT = {
+    title: {
+      type: 'string'
+    },
+    content: {
+      type: 'string'
+    }
+  }
+
+  const EMAIL_OBJECT = {
+    from: {
+      type: 'array',
+      rule: {
+        address: {
+          type: 'email'
+        },
+        name: {
+          type: 'string',
+          required: false
+        }
+      }
+    },
+    to: {
+      type: 'array',
+      rule: {
+        address: {
+          type: 'email'
+        },
+        name: {
+          type: 'string',
+          required: false
+        }
+      }
+    },
+    date: {
+      type: 'datetime-local'
+    },
+    subject: {
+      type: 'string'
+    },
+    content: {
+      type: 'string'
+    }
+  }
+
   const API = {
     personas: {
       create: {
@@ -85,6 +146,145 @@
             type: 'object',
             rule: PERSONA_OBJECT
             // required: true
+          }
+        ]
+      }
+    },
+    passwords: {
+      create: {
+        params: [
+          {
+            name: 'personaId',
+            type: 'string'
+          },
+          {
+            name: 'credential',
+            type: 'object',
+            rule: CREDENTIAL_OBJECT
+          }
+        ]
+      },
+      list: {
+        params: [
+          {
+            name: 'personaId',
+            type: 'string'
+          }
+        ]
+      },
+      show: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }
+        ]
+      },
+      edit: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          },
+          {
+            name: 'credential',
+            type: 'object',
+            rule: CREDENTIAL_OBJECT
+          }
+        ]
+      },
+      delete: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }
+        ]
+      }
+    },
+    notes: {
+      create: {
+        params: [
+          {
+            name: 'personaId',
+            type: 'string'
+          },
+          {
+            name: 'credential',
+            type: 'object',
+            rule: NOTE_OBJECT
+          }
+        ]
+      },
+      list: {
+        params: [
+          {
+            name: 'personaId',
+            type: 'string'
+          }
+        ]
+      },
+      show: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }
+        ]
+      },
+      edit: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          },
+          {
+            name: 'credential',
+            type: 'object',
+            rule: NOTE_OBJECT
+          }
+        ]
+      },
+      delete: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }
+        ]
+      }
+    },
+    emails: {
+      create: {
+        params: [
+          {
+            name: 'email',
+            type: 'object',
+            rule: EMAIL_OBJECT
+          }
+        ]
+      },
+      list: {
+        params: [
+          {
+            name: 'personaId',
+            type: 'string'
+          }
+        ]
+      },
+      show: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
+          }
+        ]
+      },
+      delete: {
+        params: [
+          {
+            name: 'id',
+            type: 'string'
           }
         ]
       }
@@ -206,6 +406,11 @@
             <input type="text" name="gateway" id="gateway" value="/api" required>
         </div>
         <div>
+            <label for="system">system context: </label>
+            <span style="display: none"></span>
+            <input type="checkbox" name="system" id="system">
+        </div>
+        <div>
             <label for="service">service: </label>
             <select name="service" id="service" onclick="updateMethodUi()">
                 <script>
@@ -259,12 +464,16 @@
           `
         }
 
-        if (rule.type === 'object' || rule.type === 'array') {
+        if (rule.type === 'object') {
           const i = path.lastIndexOf('.')
           const label = '&nbsp;'.repeat((path.split('.').length - 1) * 4) + path.substring(i + 1)
 
           return `<div><label>${label}:</label><span style="display: none"></span><input type="checkbox" id="enable-${path}"></div>` +
-            Reflect.ownKeys(rule.rule).map(key => updateInputUiHelper(rule.rule[key], path + '.' + (rule.type === 'object' ? key : '0'))).join('')
+            Reflect.ownKeys(rule.rule).map(key => updateInputUiHelper(rule.rule[key], path + '.' + key)).join('')
+        } else if (rule.type === 'array') {
+          const i = path.lastIndexOf('.')
+          return `<div><label>${'&nbsp;'.repeat((path.split('.').length - 1) * 4) + path.substring(i + 1)}:</label><span style="display: none"></span><input type="checkbox" id="enable-${path}"></div>` +
+            updateInputUiHelper({ type: 'object', rule: rule.rule }, path + '.0')
         } else {
           return buildEntry(path, rule.type)
         }
@@ -318,7 +527,14 @@
               ...Reflect.ownKeys(rule.rule).map(key => ({ [key]: helper(rule.rule[key], path + '.' + key) }))
             )
           } else if (rule.type === 'array') {
-            return [Reflect.ownKeys(rule.rule).map(key => ({ [key]: helper(rule.rule[key], path + '.' + 0) }))]
+            if (!window['enable-' + path + '.0'].checked) {
+              return []
+            }
+
+            return [Object.assign(
+              {},
+              ...Reflect.ownKeys(rule.rule).map(key => ({ [key]: helper(rule.rule[key], path + '.0.' + key) }))
+            )]
           } else if (rule.type === 'number') {
             return parseInt(window[path].value, 10) || 0
           } else if (rule.type === 'checkbox') {
@@ -335,6 +551,10 @@
           id: requestCounter++,
           method: `${service}/${method}`,
           params
+        }
+
+        if (system.checked) {
+          rpcRequest['x-context'] = { type: 'system' }
         }
 
         updateOutputUi()
